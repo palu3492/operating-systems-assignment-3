@@ -133,7 +133,7 @@ void Process::updateProcess(uint32_t current_time)
     //}
   }
   //we are moving off the CPU
-  if(state == State::Running || state == State::Preempted){
+  if(state == State::Running){
     cpu_time = cpu_time + time_spent;
     remain_time = remain_time - time_spent;
     if(time_spent >= getBurstTime()){
