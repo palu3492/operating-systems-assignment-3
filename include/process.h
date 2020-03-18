@@ -6,7 +6,7 @@
 // Process class
 class Process {
 public:
-    enum State : uint8_t {NotStarted, Ready, Running, IO, Terminated};
+    enum State : uint8_t {NotStarted, Ready, Running, IO, Terminated, Preempted};
 
 private:
     uint16_t pid;             // process ID

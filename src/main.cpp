@@ -78,7 +78,7 @@ int main(int argc, char **argv)
     while (!(shared_data->all_terminated))
     {
         // clear output from previous iteration
-        clearOutput(num_lines);
+        // clearOutput(num_lines);
 
 
 	{
@@ -97,7 +97,31 @@ int main(int argc, char **argv)
 	      //@@See if time	      
 	      if((currentTime() - start) >= processes[i]->getStartTime() && processes[i]->getState() == Process::State::NotStarted){
 		processes[i]->setState(Process::State::Ready, currentTime());
-		shared_data->ready_queue.push_back(processes[i]);
+		shared_data->ready_queue.push_back(processes[i]); // Had not started, now ready
+
+
+		// TODO Preemptive Priority
+		// If this newly created process has a higher priority than a "process" currently running on a core, then
+		// the lowest priority "process" that is running should be preempted
+		// find all processes on cores
+		// check if any are lower than this process's priority
+		// if any are then replace lowest priority process with this process
+		Process *lowest_priority_process;
+		int lowest_index = -1;
+		for(int w = 0; w < processes.size(); w++){
+		    // If running and lower priority and lowest priority
+            if(processes[w]->getState() == Process::State::Running && processes[w]->getPriority() < processes[i]->getPriority()){
+                if(lowest_priority_process == NULL || processes[w]->getPriority() < lowest_priority_process->getPriority()){
+                    lowest_priority_process = processes[w];
+                }
+            }
+		}
+		if(lowest_priority_process != NULL){
+		    // replace lower priority process with new process on CPU
+            lowest_priority_process.setState(Process::State::Preempted);
+		}
+
+
 	      }//if not started
 	      
 	      // determine when an I/O burst finishes and put the process back in the ready queue
@@ -106,7 +130,7 @@ int main(int argc, char **argv)
 	      if(burst_counter != processes[i]->getCurrentBurst() && processes[i]->getState() == Process::State::IO){
 		processes[i]->setState(Process::State::Ready, currentTime());
 		//Add process to end of the queue
-		shared_data->ready_queue.push_back(processes[i]);
+		shared_data->ready_queue.push_back(processes[i]); // was I/O, now ready
 	      }//if in IO
 	      
 	      // determine if all processes are in the terminated state
@@ -129,6 +153,8 @@ int main(int argc, char **argv)
 	
 	
         // output process status table
+        // clear output from previous iteration
+        clearOutput(num_lines); // remove flicker
         num_lines = printProcessOutput(processes, shared_data->mutex);
 
         // sleep 1/60th of a second
@@ -172,16 +198,19 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
   time_slice = shared_data->time_slice;
   algorithm = shared_data->algorithm;
 
-  //while not done
+  // while not all processes have terminated
   while(!shared_data->all_terminated){
     
     runningProcess = NULL;
+    // While there is no process running on this core
+    // and not all processes have terminated
     while(runningProcess == NULL && !shared_data->all_terminated){
       {//* CRITICAL SECTION GET FROM READ QUEUE
 	
 	std::lock_guard<std::mutex> lock(shared_data->mutex);
 	if(shared_data->ready_queue.size() > 0){
-	  // Work to be done by each core idependent of the other cores
+	  // Work to be done by each core independent of the other cores
+	  // Take process from front of ready queue and put it on this core and set it up:
 	  //  - Get process at front of ready queue
 	  runningProcess = shared_data->ready_queue.front();
 	  //  - Remove the entry from the queue
@@ -201,23 +230,26 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
       //  - Simulate the processes running until one of the following:
       //     - CPU burst time has elapsed
       //     - RR time slice has elapsed
-      //     - Process preempted by higher priority proces
+      //     - Process preempted by higher priority process
+      // Simulate by stalling for certain amount of milliseconds
       if(algorithm == ScheduleAlgorithm::FCFS){
-	while(currentTime() - start_cpu_time < cpu_burst_time);
+	while(currentTime() - start_cpu_time < cpu_burst_time); // stall until process burst time is over
       }    
       else if(algorithm == ScheduleAlgorithm::RR){
 	//If finishes or because of preemption
+	// Process will stop executing on core and go back to ready queue if the time slice is smaller than burst time
 	while(currentTime() - start_cpu_time < cpu_burst_time && currentTime() - start_cpu_time < time_slice);
       }
       else if(algorithm == ScheduleAlgorithm::SJF){
 	while(currentTime() - start_cpu_time < cpu_burst_time);
       }
       else if(algorithm == ScheduleAlgorithm::PP){
-	{
-	  std::lock_guard<std::mutex> lock(shared_data->mutex);
+	//{
+	  //std::lock_guard<std::mutex> lock(shared_data->mutex);
 	  //Check what the front process is on the thing
-	  while(currentTime() - start_cpu_time < cpu_burst_time); //&& my priority is higher than the other people's priority
-	}
+	  // TODO
+	  while(currentTime() - start_cpu_time < cpu_burst_time && runningProcess->getState() != Process::State::Preempted); //&& my priority is higher than the other people's priority
+	//}
       }
       
       
@@ -228,19 +260,23 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
       {//* CRITICAL SECTION GET FROM READ QUEUE
 	//*Update process core and state
 	std::lock_guard<std::mutex> lock(shared_data->mutex);
-	runningProcess->setCpuCore(-1);
-	runningProcess->updateProcess(currentTime());
+	runningProcess->setCpuCore(-1); // take process off core
+	runningProcess->updateProcess(currentTime()); // moves to next burst if more bursts and finished burst above
 	//Terminate
+	// Check if there are any more bursts for the process
 	if(runningProcess->getCurrentBurst() >= runningProcess->getNumBursts()){
+	    // if no more bursts then terminate
 	  runningProcess->setState(Process::State::Terminated, currentTime());
 	}
 	//Finished CPU Burst
 	//*
+	// Process moves to I/O queue because it has more bursts, it's on a odd number burst
 	else if(burst_counter != runningProcess->getCurrentBurst()){
 	  runningProcess->setState(Process::State::IO, currentTime());
 	}//*/
 	//If preempted
 	else{
+	    // If the burst finished because it was preempted then put process back on ready queue because it is not done
 	  runningProcess->setState(Process::State::Ready, currentTime());
 	  shared_data->ready_queue.push_back(runningProcess);
 	}

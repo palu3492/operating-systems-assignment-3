@@ -133,7 +133,7 @@ void Process::updateProcess(uint32_t current_time)
     //}
   }
   //we are moving off the CPU
-  if(state == State::Running){
+  if(state == State::Running || state == State::Preempted){
     cpu_time = cpu_time + time_spent;
     remain_time = remain_time - time_spent;
     if(time_spent >= getBurstTime()){
@@ -172,6 +172,7 @@ bool SjfComparator::operator ()(const Process *p1, const Process *p2)
     // your code here!
   bool result = false;
   if(p1->getRemainingTime() != p2->getRemainingTime()){
+      // sort in order of shortest time remaining
     result = (p1->getRemainingTime() < p2->getRemainingTime());
   }
   return result;
@@ -183,6 +184,7 @@ bool PpComparator::operator ()(const Process *p1, const Process *p2)
     // your code here!
   bool result = false;
   if(p1->getPriority() != p2->getPriority()){
+      // sort in order of priority
      result = (p1->getPriority() < p2->getPriority());
   }
   return result;
