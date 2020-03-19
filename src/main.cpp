@@ -24,7 +24,7 @@ typedef struct SchedulerData {
 void coreRunProcesses(uint8_t core_id, SchedulerData *data);
 int printProcessOutput(std::vector<Process*>& processes, std::mutex& mutex);
 void clearOutput(int num_lines);
-void printSchedulerStatistics();
+void printSchedulerStatistics(std::vector<Process*>& processes, uint32_t start);
 uint32_t currentTime();
 std::string processStateToString(Process::State state);
 
@@ -152,7 +152,7 @@ int main(int argc, char **argv)
     //     - Overall average
     //  - Average turnaround time
     //  - Average waiting time
-    printSchedulerStatistics();
+    printSchedulerStatistics(processes, start);
 
 
     // Clean up before quitting program
@@ -317,16 +317,32 @@ void clearOutput(int num_lines)
     fflush(stdout);
 }
 
-void printSchedulerStatistics()
+void printSchedulerStatistics(std::vector<Process*>& processes, uint32_t start)
 {
-    printf("\nScheduler Statistics:\n");
-    printf("CPU utilization \n");
+	uint32_t end = currentTime();
+	uint32_t total_time = end - start;
+	double total_turn_time = 0;
+	double total_wait_time = 0;
+	double total_cpu_time = 0;
+	// Throughput - number of processes executed by the CPU in a given amount of time
+	// total time / # processes
+	int i;
+	for (i = 0; i < processes.size(); i++)
+	{
+		total_turn_time += processes[i]->getTurnaroundTime();
+        total_wait_time += processes[i]->getWaitTime();
+        total_cpu_time += processes[i]->getCpuTime();
+	}
+    printf("\nScheduler Statistics: \n");
+    printf("Total time: %f \n", total_time/1000.0);
+    printf("Total turn time: %f \n", total_turn_time);
+    printf("CPU utilization: %f \n", total_time/total_cpu_time);
     printf("Throughput:\n");
-    printf("\tAverage for first 50%% of processes finished\n");
-    printf("\tAverage for second 50%% of processes finished\n");
-    printf("\tOverall average\n");
-    printf("Average turnaround time\n");
-    printf("Average waiting time\n");
+    printf("\tAverage for first 50%% of processes finished: \n");
+    printf("\tAverage for second 50%% of processes finished: \n");
+    printf("\tOverall average: %f \n", total_time/processes.size());
+    printf("Average turnaround time: %f \n", total_turn_time/processes.size());
+    printf("Average waiting time: %f \n", total_wait_time/processes.size());
 }
 
 uint32_t currentTime()
