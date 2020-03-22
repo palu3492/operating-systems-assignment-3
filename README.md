@@ -1,4 +1,4 @@
-# Processes Scheduler
+# Process Scheduler
 Assignment 3 for Operating Systems class: Processes Scheduling
 
 This project uses C++ to simulate an operating system process scheduler.
