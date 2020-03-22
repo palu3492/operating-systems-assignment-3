@@ -6,7 +6,9 @@
 // Process class
 class Process {
 public:
-    enum State : uint8_t {NotStarted, Ready, Running, IO, Terminated, Preempted};
+    enum State : uint8_t {
+        NotStarted, Ready, Running, IO, Terminated, Preempted
+    };
 
 private:
     uint16_t pid;             // process ID
@@ -28,36 +30,50 @@ private:
 
 public:
     Process(ProcessDetails details, uint32_t current_time);
+
     ~Process();
 
-    uint16_t getPid() const; 
+    uint16_t getPid() const;
+
     uint32_t getStartTime() const;
+
     uint16_t getNumBursts() const;
+
     uint8_t getPriority() const;
+
     State getState() const;
+
     int8_t getCpuCore() const;
+
     double getTurnaroundTime() const;
+
     double getWaitTime() const;
+
     double getCpuTime() const;
+
     double getRemainingTime() const;
+
     int16_t getCurrentBurst() const;
+
     uint32_t getBurstTime() const;
 
     void setState(State new_state, uint32_t current_time);
+
     void setCpuCore(int8_t core_num);
 
     void updateProcess(uint32_t current_time);
+
     void updateBurstTime(int burst_idx, uint32_t new_time);
 };
 
 // Comparators: used in std::list sort() method
 // No comparator needed for FCFS or RR (ready queue never sorted)
 struct SjfComparator {
-    bool operator ()(const Process *p1, const Process *p2);
+    bool operator()(const Process *p1, const Process *p2);
 };
 
 struct PpComparator {
-    bool operator ()(const Process *p1, const Process *p2);
+    bool operator()(const Process *p1, const Process *p2);
 };
 
 #endif // __PROCESS_H_
